@@ -16,13 +16,6 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* ScriptData
-SDName: Instance_Shadowfang_Keep
-SD%Complete: 90
-SDComment:
-SDCategory: Shadowfang Keep
-EndScriptData */
-
 #include "ScriptPCH.h"
 #include "shadowfang_keep.h"
 
@@ -75,12 +68,17 @@ public:
         uint64 uiAdaGUID;
         uint64 uiArchmageArugalGUID;
 
+        uint64 FryeGUID;
+        uint64 HummelGUID;
+        uint64 BaxterGUID;
+
         uint64 DoorCourtyardGUID;
         uint64 DoorSorcererGUID;
         uint64 DoorArugalGUID;
 
         uint8 uiPhase;
         uint16 uiTimer;
+        uint16 SpawnCrazedTimer;
 
         void Initialize()
         {
@@ -90,12 +88,17 @@ public:
             uiAdaGUID = 0;
             uiArchmageArugalGUID = 0;
 
+            FryeGUID = 0;
+            HummelGUID = 0;
+            BaxterGUID = 0;
+
             DoorCourtyardGUID = 0;
             DoorSorcererGUID = 0;
             DoorArugalGUID = 0;
 
             uiPhase = 0;
             uiTimer = 0;
+            SpawnCrazedTimer = 0;
         }
 
         void OnCreatureCreate(Creature* creature)
@@ -105,6 +108,9 @@ public:
                 case NPC_ASH: uiAshGUID = creature->GetGUID(); break;
                 case NPC_ADA: uiAdaGUID = creature->GetGUID(); break;
                 case NPC_ARCHMAGE_ARUGAL: uiArchmageArugalGUID = creature->GetGUID(); break;
+                case NPC_FRYE: FryeGUID = FryeGUID = creature->GetGUID(); break;
+                case NPC_HUMMEL: HummelGUID = HummelGUID = creature->GetGUID(); break;
+                case NPC_BAXTER: BaxterGUID = BaxterGUID = creature->GetGUID(); break;
             }
         }
 
@@ -174,6 +180,11 @@ public:
                         DoUseDoorOrButton(DoorArugalGUID);
                     m_auiEncounter[3] = data;
                     break;
+                case TYPE_CROWN:
+                    if (data == IN_PROGRESS)
+                        SpawnCrazedTimer = urand(7000, 14000);
+                     m_auiEncounter[4] = data;
+                     break;
             }
 
             if (data == DONE)
@@ -202,6 +213,22 @@ public:
                     return m_auiEncounter[2];
                 case TYPE_NANDOS:
                     return m_auiEncounter[3];
+                case TYPE_CROWN:
+                    return m_auiEncounter[4];
+            }
+            return 0;
+        }
+        
+        uint64 GetData64(uint32 type)
+        {
+            switch (type)
+            {
+                case DATA_BAXTER:
+                    return BaxterGUID;
+                case DATA_FRYE:
+                    return FryeGUID;
+                case DATA_HUMMEL:
+                    return HummelGUID;
             }
             return 0;
         }
@@ -235,6 +262,18 @@ public:
 
         void Update(uint32 uiDiff)
         {
+            if (GetData(TYPE_CROWN) == IN_PROGRESS)
+            {
+                if (SpawnCrazedTimer <= uiDiff)
+                {
+                    if (Creature* Hummel = instance->GetCreature(HummelGUID))
+                        Hummel->AI()->DoAction(ACTION_SPAWN_CRAZED);
+                    SpawnCrazedTimer = urand(2000, 5000);
+                }
+                else
+                    SpawnCrazedTimer -= uiDiff;
+            }
+
             if (GetData(TYPE_FENRUS) != DONE)
                 return;
 
@@ -252,7 +291,6 @@ public:
                     {
                         case 1:
                             summon = pArchmage->SummonCreature(pArchmage->GetEntry(), SpawnLocation[4], TEMPSUMMON_TIMED_DESPAWN, 10000);
-                            summon->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                             summon->SetReactState(REACT_DEFENSIVE);
                             summon->CastSpell(summon, SPELL_ASHCROMBE_TELEPORT, true);
                             DoScriptText(SAY_ARCHMAGE, summon);

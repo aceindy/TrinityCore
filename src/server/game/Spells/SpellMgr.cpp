@@ -3521,6 +3521,14 @@ void SpellMgr::LoadDbcDataCorrections()
                 spellInfo->Attributes |= SPELL_ATTR0_NEGATIVE_1;
             default:
                 break;
+			case 68946: // Irresistible Cologne
+            case 68589: // Alluring Perfume
+                spellInfo->AttributesEx -= SPELL_ATTR1_CHANNELED_1;
+                break;
+            case 69218: // [DND] Holiday - Valentine - Summon Table
+                spellInfo->EffectBasePoints[EFFECT_1] = 1;
+                spellInfo->EffectImplicitTargetA[EFFECT_1] = TARGET_DEST_CASTER_FRONT;
+                break;
         }
 
         switch (spellInfo->SpellFamilyName)

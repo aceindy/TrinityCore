@@ -19,12 +19,29 @@
 #ifndef DEF_SHADOWFANG_H
 #define DEF_SHADOWFANG_H
 
-enum eData
+enum Trio
 {
-    TYPE_FREE_NPC               = 1,
-    TYPE_RETHILGORE             = 2,
-    TYPE_FENRUS                 = 3,
-    TYPE_NANDOS                 = 4
+    NPC_HUMMEL = 36296,
+    NPC_BAXTER = 36565,
+    NPC_FRYE = 36272,
+};
+
+enum ActionHummel
+{
+    ACTION_SPAWN_CRAZED = 4,
+};
+
+enum Data
+{
+    TYPE_FREE_NPC,
+    TYPE_RETHILGORE,
+    TYPE_FENRUS,
+    TYPE_NANDOS,
+    TYPE_CROWN,
+    DATA_HUMMEL,
+    DATA_BAXTER,
+    DATA_FRYE,
+    DATA_DOOR
 };
 
 #endif
