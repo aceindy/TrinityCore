@@ -92,7 +92,7 @@ INSERT INTO `game_event_gameobject` (`eventEntry`,`guid`) VALUES
 (@EVENT, @OGUID+25);
 
 -- Removes the trashes during Event : 
-DELETE FROM `game_event_creature` WHERE `eventEntry` = -8 AND `guid` BETWEEN 16262 AND 18720;
+DELETE FROM `game_event_creature` WHERE `eventEntry` = -8 AND `guid` IN (18697,16272,16273,18713,18705,16268,16267,16269,18703,16275,16271,18712,16263,16264,16276,18702,18698,18701,16265,16266)
 INSERT INTO `game_event_creature` (`eventEntry`,`guid`) VALUES
 (-@EVENT, 18697),
 (-@EVENT, 16272),
@@ -123,7 +123,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `modelid`
 (@CGUID+1, 36272, 33, 1, 1, 0, 0, -207.418, 2213.8, 79.7638, 3.03106, 300, 0, 0, 269620, 0, 0, 0, 0, 0), -- Frye
 (@CGUID+2, 36565, 33, 1, 1, 0, 0, -213.266, 2214.05, 79.7638, 0.470783, 300, 0, 0, 269620, 0, 0, 0, 0, 0); -- Baxter
 
-DELETE FROM `game_event_creature` WHERE `eventEntry` = 8 AND `guid` BETWEEN @CGUID AND @CGUID+1;
+DELETE FROM `game_event_creature` WHERE `eventEntry` = 8 AND `guid` IN (@CGUID,@CGUID+1,@CGUID+2);
 INSERT INTO `game_event_creature` (`eventEntry`,`guid`) VALUES
 (@EVENT, @CGUID),
 (@EVENT, @CGUID+1),
@@ -131,7 +131,7 @@ INSERT INTO `game_event_creature` (`eventEntry`,`guid`) VALUES
 
 -- Moves the Crown Apothecarys
 UPDATE `creature` SET `position_x` = -200.286 , `position_y` = 2201.6 , `position_z` = 79.765 , `orientation` = 0.5373 WHERE `guid` = 208793;
-UPDATE `creature` SET `position_x` = -220.992 , `position_y` = 2212.8 , `position_z` = 79.761 , `orientation` = 5.8945 WHERE `guid` = 208794;
+UPDATE `creature` SET `position_x` = -220.992 , `position_y` = 2212.8 , `position_z` = 79.761 , `orientation` = 2.8505 WHERE `guid` = 208794;
 UPDATE `creature` SET `position_x` = -205.850 , `position_y` = 2178.9 , `position_z` = 79.766 , `orientation` = 0.0274 WHERE `guid` = 208792;
 
 -- Some Template fix
