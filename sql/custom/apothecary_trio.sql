@@ -92,7 +92,7 @@ INSERT INTO `game_event_gameobject` (`eventEntry`,`guid`) VALUES
 (@EVENT, @OGUID+25);
 
 -- Removes the trashes during Event : 
-DELETE FROM `game_event_creature` WHERE `eventEntry` = -8 AND `guid` IN (18697,16272,16273,18713,18705,16268,16267,16269,18703,16275,16271,18712,16263,16264,16276,18702,18698,18701,16265,16266)
+DELETE FROM `game_event_creature` WHERE `eventEntry` = -8 AND `guid` IN (18697,16272,16273,18713,18705,16268,16267,16269,18703,16275,16271,18712,16263,16264,16276,18702,18698,18701,16265,16266):
 INSERT INTO `game_event_creature` (`eventEntry`,`guid`) VALUES
 (-@EVENT, 18697),
 (-@EVENT, 16272),

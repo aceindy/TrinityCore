@@ -33,10 +33,10 @@ enum ActionHummel
 
 enum Data
 {
-    TYPE_FREE_NPC,
-    TYPE_RETHILGORE,
-    TYPE_FENRUS,
-    TYPE_NANDOS,
+    TYPE_FREE_NPC               = 1,	
+    TYPE_RETHILGORE             = 2,	  	
+    TYPE_FENRUS                 = 3,	  	
+    TYPE_NANDOS                 = 4,
     TYPE_CROWN,
     DATA_HUMMEL,
     DATA_BAXTER,
