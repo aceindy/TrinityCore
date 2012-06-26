@@ -22400,6 +22400,7 @@ void Player::UpdateForQuestWorldObjects()
                     obj->BuildCreateUpdateBlockForPlayer(&udata, this);
                     break;
                 }
+            }
         }
     }
     udata.BuildPacket(&packet);
