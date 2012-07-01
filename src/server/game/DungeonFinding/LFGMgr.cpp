@@ -1812,6 +1812,17 @@ void LFGMgr::TeleportPlayer(Player* player, bool out, bool fromOpcode /*= false*
                     z = at->target_Z;
                     orientation = at->target_Orientation;
                 }
+                
+                switch (dungeon->ID)
+                {
+                    case 286:
+                        mapid = 547;
+                        x = -101.766f;	
+                        y = -115.641f;	
+                        z = -2.966f;	            
+                        orientation = 4.847f;
+                        break;
+                }
             }
 
             if (error == LFG_TELEPORTERROR_OK)
