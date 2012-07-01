@@ -1815,12 +1815,14 @@ void LFGMgr::TeleportPlayer(Player* player, bool out, bool fromOpcode /*= false*
                 
                 switch (dungeon->ID)
                 {
-                    case 286:
+                    case 286: // Ahune
                         mapid = 547;
                         x = -101.766f;	
                         y = -115.641f;	
                         z = -2.966f;	            
                         orientation = 4.847f;
+                        break;
+                    default:
                         break;
                 }
             }
