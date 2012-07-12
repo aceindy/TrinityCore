@@ -693,6 +693,179 @@ public:
     };
 };
 
+/*######
+## Quest 13666 & 13673:  A Blade Fit For A Champion
+######*/
+
+enum eLakeFrog
+{
+    SPELL_WARTSBGONE_LIP_BALM                         = 62574,
+    SPELL_FROG_LOVE                                   = 62537,
+    SPELL_WARTS                                       = 62581,
+    NPC_MAIDEN_OF_ASHWOOD_LAKE                        = 33220,
+
+    QUEST_1                                           = 13603,
+    QUEST_2                                           = 13666,
+    QUEST_3                                           = 13673,
+    QUEST_4                                           = 13741,
+    QUEST_5                                           = 13746,
+    QUEST_6                                           = 13752,
+    QUEST_7                                           = 13757,
+    QUEST_8                                           = 13762,
+    QUEST_9                                           = 13768,
+    QUEST_10                                          = 13773,
+    QUEST_11                                          = 13778,
+    QUEST_12                                          = 13783,
+};
+#define SAY_FREED "Can it really be? Free after all these years?"
+
+class npc_lake_frog : public CreatureScript
+{
+public:
+
+    npc_lake_frog(): CreatureScript("npc_lake_frog"){}
+
+    struct npc_lake_frogAI : public ScriptedAI
+    {
+        npc_lake_frogAI(Creature *creature) : ScriptedAI(creature) { }
+        
+        uint32 uiFollowTimer;
+        bool following;
+ 
+        void Reset() 
+        {
+            following = false;
+            uiFollowTimer = 25000;
+        }
+
+        void UpdateAI(const uint32 diff)
+        {
+            if(following)
+            {
+                if(uiFollowTimer <= diff)
+                {
+                    me->ForcedDespawn();
+                }
+                else uiFollowTimer-=diff;
+            }
+        }
+
+        void ReceiveEmote(Player* player, uint32 emote)
+        {
+            if (following)
+                return;
+                
+            if (player->HasAura(SPELL_WARTS))
+                return;
+
+            if ((player->GetQuestStatus(QUEST_1) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_2) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_3) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_4) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_5) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_6) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_7) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_8) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_9) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_10) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_11) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_12) == QUEST_STATUS_INCOMPLETE))
+            {    
+                if (emote == TEXT_EMOTE_KISS && me->IsWithinDistInMap(player, 30.0f))
+                {
+                    if (!player->HasAura(SPELL_WARTSBGONE_LIP_BALM))
+                        player->AddAura(SPELL_WARTS, player);
+
+                    else if (roll_chance_i(10))
+                    {
+                        if (Creature* maiden = player->SummonCreature(NPC_MAIDEN_OF_ASHWOOD_LAKE, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 30000))
+                            me->MonsterSay(SAY_FREED, LANG_UNIVERSAL, 0);
+                        me->DisappearAndDie();
+                    }
+                    else
+                    {
+                        player->RemoveAura(SPELL_WARTSBGONE_LIP_BALM);
+                        me->AddAura(SPELL_FROG_LOVE, me);
+                        me->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
+                        following = true;
+                    }
+                }
+            }
+        }
+    };
+
+    CreatureAI* GetAI(Creature* creature) const
+    {
+        return new npc_lake_frogAI(creature);
+    }
+};
+
+#define MAIDEN_DEFAULT_TEXTID 14319
+#define MAIDEN_REWARD_TEXTID 14320
+#define GOSSIP_HELLO_MAIDEN "Glad to help, my lady. I'm told you were once the guardian of a fabled sword. Do you know where I might find it?"
+#define SPELL_SUMMON_ASHWOOD_BRAND 62554
+#define SAY_DESPAWN "And now, I must return to the waters of the lake."
+
+class npc_maiden_of_ashwood_lake : public CreatureScript
+{
+public:
+    npc_maiden_of_ashwood_lake(): CreatureScript("npc_maiden_of_ashwood_lake"){ }
+
+    struct npc_maiden_of_ashwood_lakeAI : public ScriptedAI
+    {
+        npc_maiden_of_ashwood_lakeAI(Creature *creature) : ScriptedAI(creature) { }
+        
+        uint32 uiTimer;
+        void Reset() 
+        {
+            uiTimer = 30000;
+        }
+
+        void UpdateAI(const uint32 diff)
+        {
+            if(uiTimer)
+            {
+                if(uiTimer <= diff)
+                {
+                    me->MonsterSay(SAY_DESPAWN, LANG_UNIVERSAL, 0); // We make her to say that on despawn.
+                }
+                else uiTimer-=diff;
+            }
+        }   
+    };
+
+    bool OnGossipHello(Player* player, Creature* creature)
+    {
+        if(!player->HasItemCount(44981, 1, true))
+        {
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_HELLO_MAIDEN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
+            player->SEND_GOSSIP_MENU(MAIDEN_DEFAULT_TEXTID, creature->GetGUID());
+            return true;
+        }
+
+        player->SEND_GOSSIP_MENU(MAIDEN_DEFAULT_TEXTID, creature->GetGUID());
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 /*uiSender*/, uint32 uiAction)
+    {
+        player->PlayerTalkClass->ClearMenus();
+        switch(uiAction)
+        {
+            case GOSSIP_ACTION_INFO_DEF+1:
+                player->CastSpell(player, SPELL_SUMMON_ASHWOOD_BRAND, true);
+                player->SEND_GOSSIP_MENU(MAIDEN_REWARD_TEXTID, creature->GetGUID());
+                break;
+        }
+        return true;
+    }
+
+    CreatureAI* GetAI(Creature* creature) const
+    {
+        return new npc_maiden_of_ashwood_lakeAI(creature);
+    }
+};
+
 void AddSC_grizzly_hills()
 {
     new npc_emily;
@@ -703,4 +876,6 @@ void AddSC_grizzly_hills()
     new npc_wounded_skirmisher;
     new npc_lightning_sentry();
     new npc_venture_co_straggler();
+    new npc_lake_frog();
+    new npc_maiden_of_ashwood_lake();
 }
