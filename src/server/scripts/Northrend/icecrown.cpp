@@ -491,6 +491,236 @@ class npc_tournament_training_dummy : public CreatureScript
 
 };
 
+/*######
+## The Grand Melee Quests
+######*/
+enum Valiant
+{
+    QUEST_GRAND_MELEE_1                         = 13665,
+    QUEST_GRAND_MELEE_2                         = 13745,
+    QUEST_GRAND_MELEE_3                         = 13750,
+    QUEST_GRAND_MELEE_4                         = 13756,
+    QUEST_GRAND_MELEE_5                         = 13761,
+    QUEST_GRAND_MELEE_6                         = 13767,
+    QUEST_GRAND_MELEE_7                         = 13772,
+    QUEST_GRAND_MELEE_8                         = 13777,
+    QUEST_GRAND_MELEE_9                         = 13782,
+    QUEST_GRAND_MELEE_10                        = 13787,
+    MOUNTED_MELEE_VICTORY_GRAND                 = 62724,
+    RIDE_VEHICLE                                = 63151,
+    LANCE_EQUIPPED                              = 62853,
+    CHARGE                                      = 63010,
+    SHIELD_BREAKER                              = 65147,
+    DEFEND                                      = 62719,
+    THRUST                                      = 62544,
+    YELLOW_ROSE_FIREWORK                        = 11544,
+    PLAYER_ON_TOURNAMENT_MOUNT                  = 63034,
+    SHIELD_LEVEL1                               = 63130,
+    SHIELD_LEVEL2                               = 63131,
+    SHIELD_LEVEL3                               = 63132, 
+    
+    NPC_STORMWIND_VALIANT                       = 33561,   
+    NPC_DARNASSUS_VALIANT                       = 33559,
+    NPC_EXODAR_VALIANT                          = 33562,
+    NPC_GNOMEREGAN_VALIANT                      = 33558,
+    NPC_IRONFORGE_VALIANT                       = 33564,
+    NPC_ORGRIMMAR_VALIANT                       = 33306,
+    NPC_SENJIN_VALIANT                          = 33285,
+    NPC_SILVERMOON_VALIANT                      = 33382,
+    NPC_UNDERCITY_VALIANT                       = 33384,
+    NPC_THUNDER_BLUFF_VALIANT                   = 33383,
+    
+};
+
+#define GOSSIP_VALIANT_1_GRAND "I am ready to fight."
+#define SAY_START_1_GRAND "On your guard!"
+#define SAY_START_2_GRAND "Prepare yourself!"
+#define SAY_END_GRAND "I have been defeated. Good Fight !"
+
+class npc_valiant : public CreatureScript
+{
+    public:
+        npc_valiant() : CreatureScript("npc_valiant") { }
+  
+        struct npc_valiantAI : public ScriptedAI
+        {
+            Unit* target;
+            uint32 SpellTimer,MoviTimer;
+            int8 x,y;
+
+            npc_valiantAI(Creature* creature) : ScriptedAI(creature){}
+            
+            void Reset()
+            {
+                me->setFaction(35);
+                me->SetReactState(REACT_PASSIVE);
+                // TODO : Make it reset Auras which are in creatur_addon
+            }
+         
+            void EnterCombat(Unit* who)
+            {
+                SpellTimer = urand(1000,2000);
+                MoviTimer = urand(1000,2000);
+            }
+
+            void DamageTaken(Unit* pDoneBy, uint32& uiDamage)
+            {
+                if (uiDamage > me->GetHealth() && pDoneBy->GetTypeId() == TYPEID_PLAYER)
+                {
+                    uiDamage = 0;
+                    me->CastSpell(me,YELLOW_ROSE_FIREWORK , true);
+                    me->MonsterSay(SAY_END_GRAND, LANG_UNIVERSAL, 0);
+                    me->setFaction(35);
+                    me->DespawnOrUnsummon(4000);
+                    target->CastSpell(target, MOUNTED_MELEE_VICTORY_GRAND, true);
+                }
+            }
+            void KilledUnit(Unit* victim)
+            {
+                Reset();
+                EnterEvadeMode();
+            }
+
+            void UpdateAI(const uint32 uiDiff)
+            {
+                if (!UpdateVictim())
+                    return;
+                target = SelectTarget(SELECT_TARGET_TOPAGGRO, 0, 200, true);
+
+                if (SpellTimer<=uiDiff)
+                {
+                    if (target && me->IsInRange(target,5,40,false))
+                    {
+                        switch (urand(0,7))
+                        {
+                            case 0:
+                            case 1:
+                            case 2:
+                                DoCastAOE(SHIELD_BREAKER, true);
+                                break;
+                            case 3:
+                            case 4:
+                            case 5:
+                            case 6:
+                                DoCastAOE(CHARGE, true);
+                                break;
+                            case 7:
+                                me->CastSpell(me, DEFEND, true);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        switch (urand(0,4))
+                        {
+                            case 0:
+                                me->CastSpell(me, DEFEND, true);
+                                break;
+                            case 1:
+                            case 2:
+                            case 3:
+                            case 4:
+                                DoCastAOE(THRUST, true);
+                                break;
+                        }
+                     }
+                    SpellTimer= urand(1000,2000);
+                } else
+                    SpellTimer -= uiDiff;
+                    
+                if (MoviTimer<=uiDiff)
+                {
+                    x = urand(0,7);
+                    y = urand(0,7);
+                    
+                    switch (urand(0,3))
+                    {
+                         case 0:
+                            me->GetMotionMaster()->MovePoint(0, (target->GetPositionX()+x), (target->GetPositionY()+y), target->GetPositionZ());
+                            break;
+                        case 1:
+                            me->GetMotionMaster()->MovePoint(0, (target->GetPositionX()-x), (target->GetPositionY()+y), target->GetPositionZ());
+                            break;
+                        case 2:
+                            me->GetMotionMaster()->MovePoint(0, (target->GetPositionX()+x), (target->GetPositionY()-y), target->GetPositionZ());
+                            break;
+                        case 3:
+                            me->GetMotionMaster()->MovePoint(0, (target->GetPositionX()-x), (target->GetPositionY()-y), target->GetPositionZ());
+                            break;
+                    } 
+
+                    MoviTimer = urand(1000,2000);
+                } else
+                    MoviTimer -= uiDiff;
+
+                    DoMeleeAttackIfReady();
+                }
+        };
+
+        bool OnGossipHello(Player* player, Creature* creature)
+        {
+            if (creature->isQuestGiver())
+                player->PrepareQuestMenu(creature->GetGUID());
+            
+            if (((player->GetQuestStatus(QUEST_GRAND_MELEE_1) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_GRAND_MELEE_2) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_GRAND_MELEE_3) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_GRAND_MELEE_4) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_GRAND_MELEE_5) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_GRAND_MELEE_6) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_GRAND_MELEE_7) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_GRAND_MELEE_8) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_GRAND_MELEE_9) == QUEST_STATUS_INCOMPLETE) ||
+                (player->GetQuestStatus(QUEST_GRAND_MELEE_10) == QUEST_STATUS_INCOMPLETE)) &&
+                (player->HasAura(RIDE_VEHICLE)) &&
+                (player->HasAura(PLAYER_ON_TOURNAMENT_MOUNT)) &&
+                (player->HasAura(LANCE_EQUIPPED)) &&
+                (!player->isInCombat()))
+            {
+                if ((creature->GetEntry() == NPC_STORMWIND_VALIANT) || (creature->GetEntry() == NPC_DARNASSUS_VALIANT) ||
+                    (creature->GetEntry() == NPC_EXODAR_VALIANT) || (creature->GetEntry() == NPC_GNOMEREGAN_VALIANT) ||
+                    (creature->GetEntry() == NPC_IRONFORGE_VALIANT))
+                {
+                    if (player->GetTeam() == ALLIANCE)
+                    {
+                        player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_VALIANT_1_GRAND, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
+                        player->SEND_GOSSIP_MENU(player->GetGossipTextId(creature), creature->GetGUID());                        
+                    } else return false;
+                
+                }
+                else 
+                {
+                    if (player->GetTeam() == HORDE)
+                    {
+                        player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_VALIANT_1_GRAND, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
+                        player->SEND_GOSSIP_MENU(player->GetGossipTextId(creature), creature->GetGUID());                       
+                    } else return false;
+                }
+                return true;
+            }
+            return false;
+        }
+        
+        bool OnGossipSelect(Player* player, Creature* creature, uint32 /*uiSender*/, uint32 uiAction)
+        {
+            player->PlayerTalkClass->ClearMenus();
+            if (uiAction == GOSSIP_ACTION_INFO_DEF+1)
+            {
+                player->CLOSE_GOSSIP_MENU();
+                creature->setFaction(14);
+                creature->SetReactState(REACT_AGGRESSIVE);
+                creature->MonsterSay(urand(0,1) ? SAY_START_1_GRAND : SAY_START_2_GRAND, LANG_UNIVERSAL, 0);
+                creature->AI()->AttackStart(player->GetVehicleCreatureBase());
+            }
+            return true;
+        }
+        
+        CreatureAI* GetAI(Creature* creature) const
+        {
+            return new npc_valiantAI(creature);
+        }
+};
+
 void AddSC_icecrown()
 {
     new npc_arete;
@@ -499,4 +729,5 @@ void AddSC_icecrown()
     new npc_guardian_pavilion;
     new npc_vereth_the_cunning;
     new npc_tournament_training_dummy;
+    new npc_valiant;
 }
