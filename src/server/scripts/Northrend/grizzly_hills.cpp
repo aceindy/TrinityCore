@@ -779,7 +779,7 @@ public:
                     else if (roll_chance_i(10))
                     {
                         if (Creature* maiden = player->SummonCreature(NPC_MAIDEN_OF_ASHWOOD_LAKE, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, 30000))
-                            me->MonsterSay(SAY_FREED, LANG_UNIVERSAL, 0);
+                            maiden->MonsterSay(SAY_FREED, LANG_UNIVERSAL, 0);
                         me->DisappearAndDie();
                     }
                     else
@@ -816,6 +816,7 @@ public:
         npc_maiden_of_ashwood_lakeAI(Creature *creature) : ScriptedAI(creature) { }
         
         uint32 uiTimer;
+
         void Reset() 
         {
             uiTimer = 30000;
