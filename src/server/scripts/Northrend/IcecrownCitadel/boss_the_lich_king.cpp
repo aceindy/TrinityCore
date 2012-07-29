@@ -34,6 +34,7 @@ enum Texts
     SAY_LK_INTRO_1                  = 0,
     SAY_LK_INTRO_2                  = 1,
     SAY_LK_INTRO_3                  = 2,
+    SAY_LK_AGGRO                    = 3,
     SAY_LK_REMORSELESS_WINTER       = 4,
     SAY_LK_QUAKE                    = 5,
     SAY_LK_SUMMON_VALKYR            = 6,
@@ -58,6 +59,7 @@ enum Texts
     SAY_TIRION_INTRO_2              = 1,
     SAY_TIRION_OUTRO_1              = 2,
     SAY_TIRION_OUTRO_2              = 3,
+    SAY_TIRION_OUTRO_3              = 4,
 
     // Terenas Menethil (outro)
     SAY_TERENAS_OUTRO_1             = 0,
@@ -515,6 +517,7 @@ class boss_the_lich_king : public CreatureScript
 
                 me->setActive(true);
                 DoZoneInCombat();
+                Talk(SAY_LK_AGGRO);
 
                 events.SetPhase(PHASE_ONE);
                 events.ScheduleEvent(EVENT_SUMMON_SHAMBLING_HORROR, 20000, 0, PHASE_ONE);
@@ -1287,6 +1290,7 @@ class npc_tirion_fordring_tft : public CreatureScript
                             break;
                         case EVENT_OUTRO_JUMP:
                             DoCastAOE(SPELL_JUMP);
+                            me->GetMotionMaster()->MoveJump(529.023254f, -2124.561035f, 840.356506f, 15.0f, 17.0f);
                             break;
                         default:
                             break;
@@ -1820,7 +1824,10 @@ class npc_terenas_menethil : public CreatureScript
                                 lichKing->AI()->DoAction(ACTION_FINISH_OUTRO);
                                 lichKing->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
                                 if (Creature* tirion = ObjectAccessor::GetCreature(*me, _instance->GetData64(DATA_HIGHLORD_TIRION_FORDRING)))
+                                {
                                     tirion->AI()->AttackStart(lichKing);
+                                    tirion->AI()->Talk(SAY_TIRION_OUTRO_3);
+                                }
                             }
                             break;
                         case EVENT_DESTROY_SOUL:
@@ -1988,6 +1995,8 @@ class npc_broken_frostmourne : public CreatureScript
                 if (action == ACTION_SUMMON_TERENAS)
                     _events.ScheduleEvent(EVENT_OUTRO_SUMMON_TERENAS, 6000, 0, PHASE_OUTRO);
             }
+
+            void EnterEvadeMode() {}
 
             void UpdateAI(uint32 const diff)
             {
