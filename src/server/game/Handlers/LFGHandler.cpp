@@ -24,6 +24,7 @@
 #include "ObjectMgr.h"
 #include "GroupMgr.h"
 #include "InstanceScript.h"
+#include "GameEventMgr.h"
 
 void BuildPlayerLockDungeonBlock(WorldPacket& data, const LfgLockMap& lock)
 {
@@ -156,7 +157,6 @@ void WorldSession::HandleLfgPlayerLockInfoRequestOpcode(WorldPacket& /*recv_data
     sLog->outDebug(LOG_FILTER_NETWORKIO, "CMSG_LFD_PLAYER_LOCK_INFO_REQUEST [" UI64FMTD "]", guid);
 
     // Get Random dungeons that can be done at a certain level and expansion
-    // FIXME - Should return seasonals (when not disabled)
     LfgDungeonSet randomDungeons;
     uint8 level = GetPlayer()->getLevel();
     uint8 expansion = GetPlayer()->GetSession()->Expansion();
@@ -166,6 +166,32 @@ void WorldSession::HandleLfgPlayerLockInfoRequestOpcode(WorldPacket& /*recv_data
         if (dungeon && dungeon->type == LFG_TYPE_RANDOM && dungeon->expansion <= expansion &&
             dungeon->minlevel <= level && level <= dungeon->maxlevel)
             randomDungeons.insert(dungeon->Entry());
+        if (dungeon && dungeon->grouptype == 11 && dungeon->expansion <= expansion &&
+            dungeon->minlevel <= level && level <= dungeon->maxlevel)
+        {
+            uint8 eventEntry = 0;
+            
+            switch (dungeon->ID)
+            {
+                case 285: // The Headless Horseman
+                    eventEntry = 12;
+                    break;
+                case 286: // The Frost Lord Ahune
+                    eventEntry = 1;
+                    break;
+                case 287: // Coren Direbrew
+                    eventEntry = 24;
+                    break;
+                case 288: // The Crown Chemical Co.
+                    eventEntry = 8;
+                    break;
+                default:
+                    break;
+            }
+            
+            if (eventEntry && sGameEventMgr->IsActiveEvent(eventEntry))
+                randomDungeons.insert(dungeon->Entry());
+        }
     }
 
     // Get player locked Dungeons
