@@ -697,6 +697,180 @@ public:
 
 };
 
+enum ancientSkullPileData
+{
+    ITEM_TIMELOST_OFFERING                  = 32720,
+    NPC_TEROKK                              = 21838,
+    QUEST_TEROKK_DOWNFALL                   = 11073,
+    
+    SPELL_CLEAVE                            = 15284,
+    SPELL_DIVINE_SHIELD                     = 40733,
+    SPELL_FRENZY                            = 28747,
+    SPELL_SHADOW_BOLT_VOLLEY                = 40721,
+    SPELL_WILL_OF_THE_ARAKKOA               = 40722,
+    SPELL_VISUAL_MARKER                     = 40656,
+    
+    NPC_MARKER_TRIGGER                      = 97016,
+    
+    SAY_SUMMONED                            = 0,
+    SAY_CHOSEN                              = 1,
+    SAY_IMMUNE                              = 2,
+    
+    EVENT_CLEAVE                            = 0,
+    EVENT_VOLLEY                            = 1,
+    EVENT_MARKER                            = 2,
+    EVENT_SHIELD                            = 3,
+};
+
+class go_ancient_skull_pile : public GameObjectScript
+{
+    public:
+        go_ancient_skull_pile() : GameObjectScript("go_ancient_skull_pile") { }
+
+        bool OnGossipHello(Player* player, GameObject* go)
+        {
+            if (player->HasItemCount(ITEM_TIMELOST_OFFERING, 1) && player->GetQuestStatus(QUEST_TEROKK_DOWNFALL) == QUEST_STATUS_INCOMPLETE)
+                player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Invoke Terokk.", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
+
+            player->SEND_GOSSIP_MENU(player->GetGossipTextId(go), go->GetGUID());
+            return true;
+        }
+
+        bool OnGossipSelect(Player* player, GameObject* go, uint32 /*uiSender*/, uint32 uiAction)
+        {
+            if (uiAction = GOSSIP_ACTION_INFO_DEF+1)
+            {
+                if (Creature* terokk = player->SummonCreature(NPC_TEROKK, go->GetPositionX() + 4.0f, go->GetPositionY() + 2.0f, go->GetPositionZ(), go->GetOrientation(), TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30000))
+                {
+                    terokk->AI()->AttackStart(player);
+                    terokk->GetMotionMaster()->Clear();
+                    terokk->GetMotionMaster()->MoveChase(player);
+                    player->DestroyItemCount(ITEM_TIMELOST_OFFERING, 1, true);
+                }
+            }
+            player->CLOSE_GOSSIP_MENU();
+            return true;
+        }
+};
+
+class npc_terokk : public CreatureScript
+{
+    public:
+        npc_terokk() : CreatureScript("npc_terokk") {}
+
+        struct npc_terokkAI : public ScriptedAI
+        {
+            npc_terokkAI(Creature* creature) : ScriptedAI(creature) { }
+
+            void Reset()
+            {
+                Events.Reset();
+                isChosen = false;
+                isImmune = false;
+                isFirst = false;
+            }
+
+            void EnterCombat (Unit* /*who*/)
+            {
+                Talk(SAY_SUMMONED);
+                
+                Events.ScheduleEvent(EVENT_CLEAVE, 5000);
+                Events.ScheduleEvent(EVENT_VOLLEY, 3000);
+                Events.ScheduleEvent(EVENT_MARKER, 15000);
+            }
+
+            void UpdateAI (const uint32 diff)
+            {
+                if (!UpdateVictim())
+                    return;
+
+                if (me->HasUnitState(UNIT_STATE_CASTING))
+                    return;
+
+                Events.Update(diff);
+
+                while (uint32 EventId = Events.ExecuteEvent())
+                {
+                    switch (EventId)
+                    {
+                       case EVENT_CLEAVE:
+                            DoCastVictim(SPELL_CLEAVE);
+                            Events.ScheduleEvent(EVENT_CLEAVE, urand (5000, 9000));
+                            break;
+                       case EVENT_VOLLEY:
+                            DoCastVictim(SPELL_SHADOW_BOLT_VOLLEY);
+                            Events.ScheduleEvent(EVENT_VOLLEY, urand (9000, 12000));
+                            break;
+                       case EVENT_MARKER:
+                            switch (urand(1,4))
+                            {
+                                case 1:
+                                    if (Creature* trigger = me->SummonCreature(NPC_MARKER_TRIGGER,me->GetPositionX()+30,me->GetPositionY(),me->GetPositionZ(),0.0f,TEMPSUMMON_TIMED_DESPAWN,30000))
+                                    trigger->AddAura(SPELL_VISUAL_MARKER,trigger);
+                                    break;
+                                case 2:
+                                    if (Creature* trigger = me->SummonCreature(NPC_MARKER_TRIGGER,me->GetPositionX(),me->GetPositionY()+30,me->GetPositionZ(),0.0f,TEMPSUMMON_TIMED_DESPAWN,30000))
+                                    trigger->AddAura(SPELL_VISUAL_MARKER,trigger);
+                                    break;
+                                case 3:
+                                    if (Creature* trigger = me->SummonCreature(NPC_MARKER_TRIGGER,me->GetPositionX()-30,me->GetPositionY(),me->GetPositionZ(),0.0f,TEMPSUMMON_TIMED_DESPAWN,30000))
+                                    trigger->AddAura(SPELL_VISUAL_MARKER,trigger);
+                                    break;
+                                case 4:
+                                    if (Creature* trigger = me->SummonCreature(NPC_MARKER_TRIGGER,me->GetPositionX(),me->GetPositionY()-30,me->GetPositionZ(),0.0f,TEMPSUMMON_TIMED_DESPAWN,30000))
+                                    trigger->AddAura(SPELL_VISUAL_MARKER,trigger);
+                                    break;
+                            }
+                            Events.ScheduleEvent(EVENT_MARKER, urand (20000, 25000));
+                            break;
+                        case EVENT_SHIELD:
+                            isImmune = true;
+                            Talk(SAY_IMMUNE);
+                            DoCast(me, SPELL_DIVINE_SHIELD);
+                            break;
+                    }
+                }
+
+                if (HealthBelowPct(50) && !isChosen)
+                {
+                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                    {
+                        Talk(SAY_CHOSEN);
+                        DoCast(target, SPELL_WILL_OF_THE_ARAKKOA);
+                        isChosen = true;
+                    }
+                }
+
+                if (HealthBelowPct(25) && !isImmune && !isFirst)
+                {
+                    Events.ScheduleEvent(EVENT_SHIELD, 500);
+                    isFirst = true;
+                }
+
+                if (me->FindNearestCreature(NPC_MARKER_TRIGGER, 2.0f, true) && isImmune)
+                {
+                    me->RemoveAura(SPELL_DIVINE_SHIELD);
+                    DoCast(me, SPELL_FRENZY);
+                    isImmune = false;
+                    Events.ScheduleEvent(EVENT_SHIELD, 15000);
+                }
+
+                DoMeleeAttackIfReady();
+            }
+            
+        private :
+            EventMap Events;
+            bool isChosen;
+            bool isImmune;
+            bool isFirst;
+    };
+
+    CreatureAI* GetAI(Creature* creature) const
+    {
+        return new npc_terokkAI(creature);
+    }
+};
+
 void AddSC_terokkar_forest()
 {
     new mob_unkor_the_ruthless();
@@ -709,4 +883,6 @@ void AddSC_terokkar_forest()
     new npc_skywing();
     new npc_slim();
     new npc_akuno();
+    new go_ancient_skull_pile();
+    new npc_terokk();
 }
