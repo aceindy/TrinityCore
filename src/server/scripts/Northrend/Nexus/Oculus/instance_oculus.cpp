@@ -53,6 +53,7 @@ public:
             centrifugueConstructCounter = 0;
 
             eregosCacheGUID = 0;
+            spotLightGUID = 0;
 
             azureDragonsList.clear();
             gameObjectList.clear();
@@ -112,9 +113,19 @@ public:
                     varosGUID = creature->GetGUID();
                     break;
                 case NPC_UROM:
+                    if (GetBossState(DATA_VAROS_EVENT) != DONE)
+                    {
+                        creature->SetReactState(REACT_PASSIVE);
+                        creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                    }
                     uromGUID = creature->GetGUID();
                     break;
                 case NPC_EREGOS:
+                    if (GetBossState(DATA_UROM_EVENT) != DONE)
+                    {
+                        creature->SetReactState(REACT_PASSIVE);
+                        creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                    }
                     eregosGUID = creature->GetGUID();
                     break;
                 case NPC_CENTRIFUGE_CONSTRUCT:
@@ -138,6 +149,13 @@ public:
                 case GO_EREGOS_CACHE_N:
                 case GO_EREGOS_CACHE_H:
                     eregosCacheGUID = go->GetGUID();
+                    if (GetBossState(DATA_EREGOS_EVENT) != DONE)
+                        go->SetPhaseMask(2, true);
+                    break;
+                case GO_CACHE_SPOTLIGHT:
+                    spotLightGUID = go->GetGUID();
+                    if (GetBossState(DATA_EREGOS_EVENT) != DONE)
+                        go->SetPhaseMask(2, true);
                     break;
                 default:
                     break;
@@ -156,16 +174,41 @@ public:
                     {
                         DoUpdateWorldState(WORLD_STATE_CENTRIFUGE_CONSTRUCT_SHOW, 1);
                         DoUpdateWorldState(WORLD_STATE_CENTRIFUGE_CONSTRUCT_AMOUNT, centrifugueConstructCounter);
+                        DoStartTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEV_TIMED_START_EVENT);
                         OpenCageDoors();
                     }
                     break;
                 case DATA_VAROS_EVENT:
                     if (state == DONE)
+                    {
                         DoUpdateWorldState(WORLD_STATE_CENTRIFUGE_CONSTRUCT_SHOW, 0);
+                        
+                        if (Creature* Urom = instance->GetCreature(uromGUID))
+                        {
+                            Urom->SetReactState(REACT_AGGRESSIVE);
+                            Urom->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                            Urom->RemoveAllAuras();
+                        }
+                    }
+                    break;
+                case DATA_UROM_EVENT:
+                    if (state == DONE)
+                    {
+                        if (Creature* Eregos = instance->GetCreature(eregosGUID))
+                        {
+                            Eregos->SetReactState(REACT_AGGRESSIVE);
+                            Eregos->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                        }
+                    }
                     break;
                 case DATA_EREGOS_EVENT:
                     if (state == DONE)
-                        DoRespawnGameObject(eregosCacheGUID, 7*DAY);
+                    {
+                        if (GameObject* Cache = instance->GetGameObject(eregosCacheGUID))
+                            Cache->SetPhaseMask(1, true);
+                        if (GameObject* Light = instance->GetGameObject(spotLightGUID))
+                            Light->SetPhaseMask(1, true);
+                    }
                     break;
             }
 
@@ -271,6 +314,7 @@ public:
             uint8 centrifugueConstructCounter;
 
             uint64 eregosCacheGUID;
+            uint64 spotLightGUID;
 
             std::string str_data;
 

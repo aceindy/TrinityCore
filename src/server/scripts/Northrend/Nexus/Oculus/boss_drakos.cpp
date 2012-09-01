@@ -22,6 +22,7 @@ enum Spells
 {
     SPELL_MAGIC_PULL                              = 51336,
     SPELL_THUNDERING_STOMP                        = 50774,
+    SPELL_THUNDERING_STOMP_H                      = 59370,
     SPELL_UNSTABLE_SPHERE_PASSIVE                 = 50756,
     SPELL_UNSTABLE_SPHERE_PULSE                   = 50757,
     SPELL_UNSTABLE_SPHERE_TIMER                   = 50758,
@@ -30,30 +31,21 @@ enum Spells
 
 enum Yells
 {
-    SAY_AGGRO                                     = -1578005,
-    SAY_KILL_1                                    = -1578006,
-    SAY_KILL_2                                    = -1578007,
-    SAY_KILL_3                                    = -1578008,
-    SAY_DEATH                                     = -1578009,
-    SAY_PULL_1                                    = -1578010,
-    SAY_PULL_2                                    = -1578011,
-    SAY_PULL_3                                    = -1578012,
-    SAY_PULL_4                                    = -1578013,
-    SAY_STOMP_1                                   = -1578014,
-    SAY_STOMP_2                                   = -1578015,
-    SAY_STOMP_3                                   = -1578016
-};
-
-enum DrakosAchievement
-{
-    ACHIEV_TIMED_START_EVENT                      = 18153,
+    SAY_AGGRO                                     = 0,
+    SAY_PULL                                      = 1,
+    SAY_STOMP                                     = 2,
+    SAY_KILL                                      = 3,
+    SAY_DEATH                                     = 4,
+    
+    SAY_VAROS                                     = 0,
 };
 
 enum DrakosEvents
 {
     EVENT_MAGIC_PULL = 1,
     EVENT_STOMP,
-    EVENT_BOMB_SUMMON
+    EVENT_BOMB_SUMMON,
+    EVENT_VAROS_SAY,
 };
 
 class boss_drakos : public CreatureScript
@@ -84,7 +76,7 @@ public:
         void EnterCombat(Unit* /*who*/)
         {
             _EnterCombat();
-            DoScriptText(SAY_AGGRO, me);
+            Talk(SAY_AGGRO);
         }
 
         void UpdateAI(const uint32 diff)
@@ -116,14 +108,21 @@ public:
                         events.ScheduleEvent(EVENT_BOMB_SUMMON, 2000);
                         break;
                     case EVENT_MAGIC_PULL:
+                        Talk(SAY_PULL);
                         DoCast(SPELL_MAGIC_PULL);
                         postPull = true;
                         events.ScheduleEvent(EVENT_MAGIC_PULL, 15000);
                         break;
                     case EVENT_STOMP:
-                        DoScriptText(RAND(SAY_STOMP_1, SAY_STOMP_2, SAY_STOMP_3), me);
-                        DoCast(SPELL_THUNDERING_STOMP);
+                        Talk(SAY_STOMP);
+                        DoCast(DUNGEON_MODE(SPELL_THUNDERING_STOMP, SPELL_THUNDERING_STOMP_H));
                         events.ScheduleEvent(EVENT_STOMP, 17000);
+                        break;
+                    case EVENT_VAROS_SAY:
+                        if (Creature* varos = me->GetCreature(*me, instance->GetData64(DATA_VAROS)))
+                            if (!instance->instance->GetPlayers().isEmpty()) // We use this because Varos is in Out of Range, therefore it have to be done via instance.
+                                if (Player* player = instance->instance->GetPlayers().getFirst()->getSource())
+                                    sCreatureTextMgr->SendChat(varos, SAY_VAROS, player->GetGUID(), CHAT_MSG_MONSTER_YELL, LANG_ADDON, TEXT_RANGE_MAP);
                         break;
                 }
             }
@@ -135,15 +134,14 @@ public:
         {
             _JustDied();
 
-            DoScriptText(SAY_DEATH, me);
-
-            // start achievement timer (kill Eregos within 20 min)
-            instance->DoStartTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEV_TIMED_START_EVENT);
+            Talk(SAY_DEATH);
+            
+            events.ScheduleEvent(EVENT_VAROS_SAY, 4500);
         }
 
         void KilledUnit(Unit* /*victim*/)
         {
-            DoScriptText(RAND(SAY_KILL_1, SAY_KILL_2, SAY_KILL_3), me);
+            Talk(SAY_KILL);
         }
     private:
         bool postPull;

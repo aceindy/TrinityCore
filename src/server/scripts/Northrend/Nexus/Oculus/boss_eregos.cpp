@@ -31,9 +31,10 @@ enum Events
 
 enum Says
 {
-    SAY_AGGRO = 0,
-    SAY_ENRAGE = 1,
-    SAY_DEATH = 2
+    SAY_AGGRO                                     = 1,
+    SAY_KILL                                      = 2,
+    SAY_ENRAGE                                    = 3,
+    SAY_DEATH                                     = 4 
 };
 
 enum Spells
@@ -65,60 +66,10 @@ enum Actions
     ACTION_SET_NORMAL_EVENTS = 1
 };
 
-/*Ruby Drake,
-(npc 27756) (item 37860)
-(summoned by spell Ruby Essence = 37860 ---> Call Amber Drake == 49462 ---> Summon 27756)
-*/
-enum RubyDrake
-{
-    NPC_RUBY_DRAKE_VEHICLE                        = 27756,
-    SPELL_RIDE_RUBY_DRAKE_QUE                     = 49463,          //Apply Aura: Periodic Trigger, Interval: 3 seconds ---> 49464
-    SPELL_RUBY_DRAKE_SADDLE                       = 49464,          //Allows you to ride on the back of an Amber Drake. ---> Dummy
-    SPELL_RUBY_SEARING_WRATH                      = 50232,          //(60 yds) - Instant - Breathes a stream of fire at an enemy dragon, dealing 6800 to 9200 Fire damage and then jumping to additional dragons within 30 yards. Each jump increases the damage by 50%. Affects up to 5 total targets
-    SPELL_RUBY_EVASIVE_AURA                       = 50248,          //Instant - Allows the Ruby Drake to generate Evasive Charges when hit by hostile attacks and spells.
-    SPELL_RUBY_EVASIVE_MANEUVERS                  = 50240,          //Instant - 5 sec. cooldown - Allows your drake to dodge all incoming attacks and spells. Requires Evasive Charges to use. Each attack or spell dodged while this ability is active burns one Evasive Charge. Lasts 30 sec. or until all charges are exhausted.
-    //you do not have acces to until you kill Mage-Lord Urom
-    SPELL_RUBY_MARTYR                             = 50253          //Instant - 10 sec. cooldown - Redirect all harmful spells cast at friendly drakes to yourself for 10 sec.
-};
-/*Amber Drake,
-(npc 27755)  (item 37859)
-(summoned by spell Amber Essence = 37859 ---> Call Amber Drake == 49461 ---> Summon 27755)
-*/
-enum AmberDrake
-{
-    NPC_AMBER_DRAKE_VEHICLE                       = 27755,
-    SPELL_RIDE_AMBER_DRAKE_QUE                    = 49459,          //Apply Aura: Periodic Trigger, Interval: 3 seconds ---> 49460
-    SPELL_AMBER_DRAKE_SADDLE                      = 49460,          //Allows you to ride on the back of an Amber Drake. ---> Dummy
-    SPELL_AMBER_SHOCK_LANCE                       = 49840,         //(60 yds) - Instant - Deals 4822 to 5602 Arcane damage and detonates all Shock Charges on an enemy dragon. Damage is increased by 6525 for each detonated.
-//  SPELL_AMBER_STOP_TIME                                    //Instant - 1 min cooldown - Halts the passage of time, freezing all enemy dragons in place for 10 sec. This attack applies 5 Shock Charges to each affected target.
-    //you do not have access to until you kill the  Mage-Lord Urom.
-    SPELL_AMBER_TEMPORAL_RIFT                     = 49592         //(60 yds) - Channeled - Channels a temporal rift on an enemy dragon for 10 sec. While trapped in the rift, all damage done to the target is increased by 100%. In addition, for every 15, 000 damage done to a target affected by Temporal Rift, 1 Shock Charge is generated.
-};
-
-/*Emerald Drake,
-(npc 27692)  (item 37815),
- (summoned by spell Emerald Essence = 37815 ---> Call Emerald Drake == 49345 ---> Summon 27692)
-*/
-enum EmeraldDrake
-{
-    NPC_EMERALD_DRAKE_VEHICLE                     = 27692,
-    SPELL_RIDE_EMERALD_DRAKE_QUE                  = 49427,         //Apply Aura: Periodic Trigger, Interval: 3 seconds ---> 49346
-    SPELL_EMERALD_DRAKE_SADDLE                    = 49346,         //Allows you to ride on the back of an Amber Drake. ---> Dummy
-    SPELL_EMERALD_LEECHING_POISON                 = 50328,         //(60 yds) - Instant - Poisons the enemy dragon, leeching 1300 to the caster every 2 sec. for 12 sec. Stacks up to 3 times.
-    SPELL_EMERALD_TOUCH_THE_NIGHTMARE             = 50341,         //(60 yds) - Instant - Consumes 30% of the caster's max health to inflict 25, 000 nature damage to an enemy dragon and reduce the damage it deals by 25% for 30 sec.
-    // you do not have access to until you kill the Mage-Lord Urom
-    SPELL_EMERALD_DREAM_FUNNEL                    = 50344         //(60 yds) - Channeled - Transfers 5% of the caster's max health to a friendly drake every second for 10 seconds as long as the caster channels.
-};
-
 class boss_eregos : public CreatureScript
 {
 public:
     boss_eregos() : CreatureScript("boss_eregos") { }
-
-    CreatureAI* GetAI(Creature* creature) const
-    {
-        return new boss_eregosAI (creature);
-    }
 
     struct boss_eregosAI : public BossAI
     {
@@ -129,12 +80,23 @@ public:
             _Reset();
 
             phase = PHASE_NORMAL;
+            EmeraldVoid = true;
+            RubyVoid = true;
+            AmberVoid = true;
 
+            me->SetSpeed(MOVE_FLIGHT, 2.8f);
             DoAction(ACTION_SET_NORMAL_EVENTS);
         }
 
         void EnterCombat(Unit* /*who*/)
         {
+            if(Creature* EmeraldDrake = me->FindNearestCreature(27692, 300, true))
+                EmeraldVoid = false;
+            if(Creature*RubyDrake = me->FindNearestCreature(27756, 300, true))
+                RubyVoid = false;
+            if(Creature* AmberDrake = me->FindNearestCreature(27755, 300, true))
+                AmberVoid = false;
+
             _EnterCombat();
 
             Talk(SAY_AGGRO);
@@ -177,18 +139,13 @@ public:
             if (!me->GetMap()->IsHeroic())
                 return;
 
-            if ( (me->GetHealthPct() < 60.0f  && me->GetHealthPct() > 20.0f && phase < PHASE_FIRST_PLANAR)
-                || (me->GetHealthPct() < 20.0f && phase < PHASE_SECOND_PLANAR) )
+            if ((me->HealthBelowPct(60) && me->HealthAbovePct(20) && phase < PHASE_FIRST_PLANAR) ||
+                (me->HealthBelowPct(20) && phase < PHASE_SECOND_PLANAR))
             {
                 events.Reset();
-                phase = (me->GetHealthPct() < 60.0f  && me->GetHealthPct() > 20.0f) ? PHASE_FIRST_PLANAR : PHASE_SECOND_PLANAR;
+                phase = (me->HealthBelowPct(60) && me->HealthAbovePct(20)) ? PHASE_FIRST_PLANAR : PHASE_SECOND_PLANAR;
 
                 DoCast(SPELL_PLANAR_SHIFT);
-
-                // not sure about the amount, and if we should despawn previous spawns (dragon trashs)
-                summons.DespawnAll();
-                for (uint8 i = 0; i < 6; i++)
-                    DoCast(SPELL_PLANAR_ANOMALIES);
             }
         }
 
@@ -235,11 +192,87 @@ public:
         {
             Talk(SAY_DEATH);
 
+            if (IsHeroic())
+            {
+                if (EmeraldVoid)
+                    instance->DoCompleteAchievement(2045);
+                if (RubyVoid)
+                    instance->DoCompleteAchievement(2044);
+                if (AmberVoid)
+                    instance->DoCompleteAchievement(2046);
+            }
+            
             _JustDied();
         }
 
+        void KilledUnit(Unit* /*victim*/)
+        {
+            Talk(SAY_KILL);
+        }
+        
     private:
+        InstanceScript* _instance;
+
         uint8 phase;
+        bool EmeraldVoid;
+        bool RubyVoid;
+        bool AmberVoid;
+    };
+    
+    CreatureAI* GetAI(Creature* creature) const
+    {
+        return new boss_eregosAI (creature);
+    }
+
+};
+
+enum AnomalySpells
+{
+    SPELL_PLANAR_DISTORTION                       = 59379, // Periodic damage aura
+    SPELL_PLANAR_SPARK                            = 57971, // Visual
+};
+
+class mob_planar_anomaly : public CreatureScript
+{
+public:
+    mob_planar_anomaly() : CreatureScript("mob_planar_anomaly") { }
+
+    CreatureAI* GetAI(Creature* creature) const
+    {
+        return new mob_planar_anomalyAI(creature);
+    }
+    
+    struct mob_planar_anomalyAI : public ScriptedAI
+    {
+        mob_planar_anomalyAI(Creature *creature) : ScriptedAI(creature) {}
+ 
+        void Reset()
+        {
+            BlastTimer = 16000;
+            me->SetFlying(true);
+            me->SetSpeed(MOVE_FLIGHT, 3.1f);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+            me->AddAura(SPELL_PLANAR_DISTORTION, me);
+            me->AddAura(SPELL_PLANAR_SPARK, me);
+            me->DespawnOrUnsummon(18000);
+        }
+
+        void UpdateAI(const uint32 uiDiff)
+        {
+            if (!UpdateVictim())
+                return;
+
+            if (BlastTimer && BlastTimer <= uiDiff)
+            {
+                DoCastAOE(SPELL_PLANAR_BLAST, true);
+                BlastTimer = 0;
+            }
+            else
+                BlastTimer -= uiDiff;
+        }
+        
+    private:
+        uint32 BlastTimer;
     };
 };
 
@@ -252,6 +285,23 @@ class spell_eregos_planar_shift : public SpellScriptLoader
         {
             PrepareAuraScript(spell_eregos_planar_shift_AuraScript);
 
+            void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Unit* caster = GetCaster())
+                     if (Creature* creatureCaster = caster->ToCreature())
+                        if (InstanceScript* _instance = caster->GetInstanceScript())
+                        {
+                            Map::PlayerList const &players = _instance->instance->GetPlayers();
+                            for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
+                                if (Player* _player = itr->getSource())
+                                    if(Creature* anomaly = _player->SummonCreature(NPC_PLANAR_ANOMALY, _player->GetPositionX() + urand(5, 10), _player->GetPositionY() + urand(5, 10), _player->GetPositionZ()))
+                                        if(Unit* drake = _player->GetVehicleBase())
+                                            anomaly->GetMotionMaster()->MoveChase(drake);
+                                        else
+                                            anomaly->GetMotionMaster()->MoveChase(_player);
+                        }
+            }
+            
             void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
             {
                 if (Unit* caster = GetCaster())
@@ -261,7 +311,7 @@ class spell_eregos_planar_shift : public SpellScriptLoader
 
             void Register()
             {
-                AfterEffectRemove += AuraEffectRemoveFn(spell_eregos_planar_shift_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_SCHOOL_IMMUNITY, AURA_EFFECT_HANDLE_REAL);
+                AfterEffectApply += AuraEffectApplyFn(spell_eregos_planar_shift_AuraScript::OnApply, EFFECT_0, SPELL_AURA_SCHOOL_IMMUNITY, AURA_EFFECT_HANDLE_REAL);
             }
         };
 
@@ -274,5 +324,6 @@ class spell_eregos_planar_shift : public SpellScriptLoader
 void AddSC_boss_eregos()
 {
     new boss_eregos();
+    new mob_planar_anomaly();
     new spell_eregos_planar_shift();
 }

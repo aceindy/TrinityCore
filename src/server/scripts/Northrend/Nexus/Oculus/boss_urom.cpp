@@ -30,23 +30,26 @@ enum Spells
 
     SPELL_ARCANE_SHIELD                           = 53813, //Dummy --> Channeled, shields the caster from damage.
     SPELL_EMPOWERED_ARCANE_EXPLOSION              = 51110,
-    SPELL_EMPOWERED_ARCANE_EXPLOSION_2            = 59377,
+    SPELL_EMPOWERED_ARCANE_EXPLOSION_H            = 59377,
     SPELL_FROSTBOMB                               = 51103, //Urom throws a bomb, hitting its target with the highest aggro which inflict directly 650 frost damage and drops a frost zone on the ground. This zone deals 650 frost damage per second and reduce the movement speed by 35%. Lasts 1 minute.
     SPELL_SUMMON_MENAGERIE                        = 50476, //Summons an assortment of creatures and teleports the caster to safety.
     SPELL_SUMMON_MENAGERIE_2                      = 50495,
     SPELL_SUMMON_MENAGERIE_3                      = 50496,
     SPELL_TELEPORT                                = 51112, //Teleports to the center of Oculus
     SPELL_TIME_BOMB                               = 51121, //Deals arcane damage to a random player, and after 6 seconds, deals zone damage to nearby equal to the health missing of the target afflicted by the debuff.
-    SPELL_TIME_BOMB_2                             = 59376
+    SPELL_TIME_BOMB_H                             = 59376,
+    SPELL_FROST_BUFFET                            = 58025,
 };
 
 enum Yells
 {
-    SAY_AGGRO_1                                   = -1578000,
-    SAY_AGGRO_2                                   = -1578001,
-    SAY_AGGRO_3                                   = -1578002,
-    SAY_AGGRO_4                                   = -1578003,
-    SAY_TELEPORT                                  = -1578004,
+    SAY_PLATFORM_1                                = 0,
+    SAY_PLATFORM_2                                = 1,
+    SAY_PLATFORM_3                                = 2,
+    SAY_PLATFORM_4                                = 3,
+    SAY_TELEPORT                                  = 4,
+    SAY_KILL                                      = 5,
+    SAY_DEATH                                     = 6,
 };
 
 enum eCreature
@@ -81,9 +84,9 @@ static uint32 TeleportSpells[]=
     SPELL_SUMMON_MENAGERIE, SPELL_SUMMON_MENAGERIE_2, SPELL_SUMMON_MENAGERIE_3
 };
 
-static int32 SayAggro[]=
+static int32 SayPlatform[]=
 {
-    SAY_AGGRO_1, SAY_AGGRO_2, SAY_AGGRO_3, SAY_AGGRO_4
+    SAY_PLATFORM_1, SAY_PLATFORM_2, SAY_PLATFORM_3, SAY_PLATFORM_4
 };
 
 class boss_urom : public CreatureScript
@@ -119,6 +122,7 @@ public:
             canGoBack = false;
 
             me->GetMotionMaster()->MoveIdle();
+            me->ApplySpellImmune(0, IMMUNITY_ID, SPELL_AMBER_STOP_TIME, true);
 
             teleportTimer = urand(30000, 35000);
             arcaneExplosionTimer = 9000;
@@ -139,6 +143,11 @@ public:
                 instance->SetData(DATA_UROM_PLATAFORM, instance->GetData(DATA_UROM_PLATAFORM)+1);
         }
 
+        bool CanAIAttack(Unit const* target) const
+        {
+            return !target->IsVehicle();
+        }
+
         void AttackStart(Unit* who)
         {
             if (!who)
@@ -151,7 +160,7 @@ public:
             {
                 if (me->Attack(who, true))
                 {
-                    DoScriptText(SayAggro[3], me);
+                    Talk(SayPlatform[3]);
 
                     me->SetInCombatWith(who);
                     who->SetInCombatWith(me);
@@ -215,7 +224,7 @@ public:
             if (!instance || instance->GetData(DATA_UROM_PLATAFORM) > 2)
                 return;
 
-            DoScriptText(SayAggro[instance->GetData(DATA_UROM_PLATAFORM)], me);
+            Talk(SayPlatform[instance->GetData(DATA_UROM_PLATAFORM)]);
             DoCast(TeleportSpells[instance->GetData(DATA_UROM_PLATAFORM)]);
         }
 
@@ -228,10 +237,13 @@ public:
             if (!instance || instance->GetData(DATA_UROM_PLATAFORM) < 2)
                 return;
 
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+                return;
+
             if (teleportTimer <= uiDiff)
             {
                 me->InterruptNonMeleeSpells(false);
-                DoScriptText(SAY_TELEPORT, me);
+                Talk(SAY_TELEPORT);
                 me->GetMotionMaster()->MoveIdle();
                 DoCast(SPELL_TELEPORT);
                 teleportTimer = urand(30000, 35000);
@@ -244,7 +256,7 @@ public:
                 {
                     canCast = false;
                     canGoBack = true;
-                    DoCastAOE(SPELL_EMPOWERED_ARCANE_EXPLOSION);
+                    DoCastAOE(DUNGEON_MODE(SPELL_EMPOWERED_ARCANE_EXPLOSION, SPELL_EMPOWERED_ARCANE_EXPLOSION_H));
                     castArcaneExplosionTimer = 2000;
                 }else castArcaneExplosionTimer -= uiDiff;
             }
@@ -272,14 +284,16 @@ public:
                 {
                     DoCastVictim(SPELL_FROSTBOMB);
                     frostBombTimer = urand(5000, 8000);
+                    return;
                 } else frostBombTimer -= uiDiff;
 
                 if (timeBombTimer <= uiDiff)
                 {
                     if (Unit* unit = SelectTarget(SELECT_TARGET_RANDOM))
-                        DoCast(unit, SPELL_TIME_BOMB);
+                        DoCast(unit, DUNGEON_MODE(SPELL_TIME_BOMB, SPELL_TIME_BOMB_H));
 
                     timeBombTimer = urand(20000, 25000);
+                    return;
                 } else timeBombTimer -= uiDiff;
             }
 
@@ -290,6 +304,11 @@ public:
         {
             _JustDied();
             DoCast(me, SPELL_DEATH_SPELL, true); // we cast the spell as triggered or the summon effect does not occur 
+
+            Talk(SAY_DEATH);
+            
+            if (Creature* eregos = me->GetCreature(*me, instance->GetData64(DATA_EREGOS)))
+                eregos->AI()->Talk(0);
         }
 
         void LeaveCombat()
@@ -323,6 +342,12 @@ public:
                     break;
             }
         }
+
+        void KilledUnit(Unit* /*victim*/)
+        {
+            Talk(SAY_KILL);
+        }
+
         private:
             float x, y;
 

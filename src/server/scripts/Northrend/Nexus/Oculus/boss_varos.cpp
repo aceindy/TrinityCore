@@ -21,24 +21,27 @@
 
 enum Says
 {
-    SAY_AGGRO           = 0,
-    SAY_AZURE           = 1,
-    SAY_AZURE_EMOTE     = 2,
-    SAY_DEATH           = 3
+    SAY_AGGRO           = 1,
+    SAY_AZURE           = 2,
+    SAY_KILL            = 3,
+    SAY_DEATH           = 4,
+    SAY_AZURE_EMOTE     = 5
 };
 
 enum Spells
 {
     SPELL_ENERGIZE_CORES_VISUAL                   = 62136,
     SPELL_ENERGIZE_CORES                          = 50785, //Damage 5938 to 6562, effec2 Triggers 54069, effect3 Triggers 56251
+    SPELL_ENERGIZE_CORES_H                        = 59372,
     SPELL_CALL_AZURE_RING_CAPTAIN                 = 51002, //Effect    Send Event (12229)
     /*SPELL_CALL_AZURE_RING_CAPTAIN_2               = 51006, //Effect    Send Event (10665)
     SPELL_CALL_AZURE_RING_CAPTAIN_3               = 51007, //Effect    Send Event (18454)
     SPELL_CALL_AZURE_RING_CAPTAIN_4               = 51008, //Effect    Send Event (18455)*/
     SPELL_CALL_AMPLIFY_MAGIC                      = 51054,
-
+    SPELL_CALL_AMPLIFY_MAGIC_H                    = 59371,
     SPELL_ICE_BEAM                                = 49549,
     SPELL_ARCANE_BEAM_PERIODIC                    = 51019,
+    SPELL_ARCANE_BEAM_VISUAL                      = 51024,
     SPELL_SUMMON_ARCANE_BEAM                      = 51017
 };
 
@@ -71,7 +74,9 @@ public:
         void Reset()
         {
             _Reset();
-
+            
+            me->ApplySpellImmune(0, IMMUNITY_ID, SPELL_AMBER_STOP_TIME, true);
+            
             events.ScheduleEvent(EVENT_AMPLIFY_MAGIC, urand(20, 25) * IN_MILLISECONDS);
             events.ScheduleEvent(EVENT_ENERGIZE_CORES_VISUAL, 5000);
             // not sure if this is handled by a timer or hp percentage
@@ -93,6 +98,11 @@ public:
             return coreEnergizeOrientation;
         }
 
+        bool CanAIAttack(Unit const* target) const
+        {
+            return !target->IsVehicle();
+        }
+            
         void UpdateAI(const uint32 diff)
         {
             //Return since we have no target
@@ -109,7 +119,7 @@ public:
                 switch (eventId)
                 {
                     case EVENT_ENERGIZE_CORES:
-                        DoCast(me, SPELL_ENERGIZE_CORES);
+                        DoCast(me, DUNGEON_MODE(SPELL_ENERGIZE_CORES, SPELL_ENERGIZE_CORES_H));
                         events.CancelEvent(EVENT_ENERGIZE_CORES);
                         break;
                     case EVENT_ENERGIZE_CORES_VISUAL:
@@ -132,7 +142,7 @@ public:
                         events.ScheduleEvent(EVENT_CALL_AZURE, urand(20, 25) * IN_MILLISECONDS);
                         break;
                     case EVENT_AMPLIFY_MAGIC:
-                        DoCast(me->getVictim(), SPELL_CALL_AMPLIFY_MAGIC);
+                        DoCast(me->getVictim(), DUNGEON_MODE(SPELL_CALL_AMPLIFY_MAGIC, SPELL_CALL_AMPLIFY_MAGIC_H));
                         events.ScheduleEvent(EVENT_AMPLIFY_MAGIC, urand(17, 20) * IN_MILLISECONDS);
                         break;
                 }
@@ -147,6 +157,12 @@ public:
             Talk(SAY_DEATH);
             DoCast(me, SPELL_DEATH_SPELL, true); // we cast the spell as triggered or the summon effect does not occur
         }
+        
+        void KilledUnit(Unit* /*victim*/)
+        {
+            Talk(SAY_KILL);
+        }
+        
     private:
         bool firstCoreEnergize;
         float coreEnergizeOrientation;
@@ -176,10 +192,7 @@ class npc_azure_ring_captain : public CreatureScript
             void SpellHitTarget(Unit* target, SpellInfo const* spell)
             {
                 if (spell->Id == SPELL_ICE_BEAM)
-                {
-                    target->CastSpell(target, SPELL_SUMMON_ARCANE_BEAM, true);
-                    me->DespawnOrUnsummon();
-                }
+                    DoAction(ACTION_ARCANE_BEAM);
             }
 
             void UpdateAI(const uint32 /*diff*/)
@@ -206,7 +219,7 @@ class npc_azure_ring_captain : public CreatureScript
             {
                 switch (action)
                 {
-                   case ACTION_CALL_DRAGON_EVENT:
+                    case ACTION_CALL_DRAGON_EVENT:
                         if (instance)
                         {
                             if (Creature* varos = ObjectAccessor::GetCreature(*me, instance->GetData64(DATA_VAROS)))
@@ -215,8 +228,29 @@ class npc_azure_ring_captain : public CreatureScript
                                 {
                                     me->SetReactState(REACT_PASSIVE);
                                     me->RemoveUnitMovementFlag(MOVEMENTFLAG_WALKING);
-                                    me->GetMotionMaster()->MovePoint(ACTION_CALL_DRAGON_EVENT, victim->GetPositionX(), victim->GetPositionY(), victim->GetPositionZ() + 20.0f);
+                                    me->GetMotionMaster()->MovePoint(ACTION_CALL_DRAGON_EVENT, victim->GetPositionX(), victim->GetPositionY(), victim->GetPositionZ() + 12.0f);
                                     targetGUID = victim->GetGUID();
+                                }
+                            }
+                        }
+                        break;
+                    case ACTION_ARCANE_BEAM:
+                        if (instance)
+                        {
+                            if (Unit* victim = me->GetPlayer(*me, targetGUID))
+                            {
+                                if (Creature* trigger = me->SummonCreature(28239, victim->GetPositionX() + urand(0,5), victim->GetPositionY() + urand(0,5), victim->GetPositionZ()))
+                                {
+                                    uint32 timer = urand(15000, 20000);
+                                    
+                                    trigger->RemoveAllAuras();
+                                    trigger->AddAura(SPELL_ARCANE_BEAM_PERIODIC, trigger);
+                                    trigger->SetSpeed(MOVE_RUN, 0.95f, true);
+                                    me->CastSpell(trigger, SPELL_ARCANE_BEAM_VISUAL, true);
+                                    trigger->Attack(victim, false);
+                                    trigger->GetMotionMaster()->MoveChase(victim, 1.7f);
+                                    trigger->DespawnOrUnsummon(timer);
+                                    me->DespawnOrUnsummon(timer+1000);
                                 }
                             }
                         }
