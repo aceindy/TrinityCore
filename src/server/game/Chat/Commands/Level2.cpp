@@ -102,7 +102,8 @@ bool ChatHandler::HandleMuteCommand(const char* args)
 
     std::string nameLink = playerLink(target_name);
 
-    PSendSysMessage(target ? LANG_YOU_DISABLE_CHAT : LANG_COMMAND_DISABLE_CHAT_DELAYED, nameLink.c_str(), notspeaktime, mutereasonstr.c_str());
+    sWorld->SendWorldText(LANG_MUTE_ANNOUNCE, nameLink.c_str(), m_session->GetPlayerName(), notspeaktime, mutereasonstr.c_str());
+    // PSendSysMessage(target ? LANG_YOU_DISABLE_CHAT : LANG_COMMAND_DISABLE_CHAT_DELAYED, nameLink.c_str(), notspeaktime, mutereasonstr.c_str());
 
     return true;
 }
