@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -351,9 +351,10 @@ class TC_GAME_API Quest
         int32  GetMinLevel() const { return MinLevel; }
         uint32 GetMaxLevel() const { return MaxLevel; }
         int32  GetQuestLevel() const { return Level; }
+        int32  GetQuestMaxScalingLevel() const { return MaxScalingLevel; }
         uint32 GetQuestInfoID() const { return QuestInfoID; }
         uint32 GetAllowableClasses() const { return AllowableClasses; }
-        int32  GetAllowableRaces() const { return AllowableRaces; }
+        uint64 GetAllowableRaces() const { return AllowableRaces; }
         uint32 GetRequiredSkill() const { return RequiredSkillId; }
         uint32 GetRequiredSkillValue() const { return RequiredSkillPoints; }
         uint32 GetRequiredMinRepFaction() const { return RequiredMinRepFaction; }
@@ -411,6 +412,7 @@ class TC_GAME_API Quest
         uint32 GetFlags() const { return Flags; }
         uint32 GetFlagsEx() const { return FlagsEx; }
         uint32 GetSpecialFlags() const { return SpecialFlags; }
+        uint32 GetScriptId() const { return ScriptId; }
         uint32 GetAreaGroupID() const { return AreaGroupID; }
         uint32 GetRewardSkillId() const { return RewardSkillId; }
         uint32 GetRewardSkillPoints() const { return RewardSkillPoints; }
@@ -451,6 +453,7 @@ class TC_GAME_API Quest
         uint32 ID;
         uint32 Type;
         int32  Level;
+        int32  MaxScalingLevel;
         uint32 PackageID;
         int32  MinLevel;
         int32  QuestSortID;
@@ -501,7 +504,7 @@ class TC_GAME_API Quest
         uint32 SoundTurnIn;
         uint32 AreaGroupID;
         uint32 LimitTime;
-        int32  AllowableRaces;
+        uint64 AllowableRaces;
         uint32 QuestRewardID;
         int32 Expansion;
         QuestObjectives Objectives;
@@ -551,6 +554,7 @@ class TC_GAME_API Quest
         uint32 SourceItemIdCount    = 0;
         uint32 RewardMailSenderEntry = 0;
         uint32 SpecialFlags         = 0; // custom flags, not sniffed/WDB
+        uint32 ScriptId             = 0;
 };
 
 struct QuestStatusData

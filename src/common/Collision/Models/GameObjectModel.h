@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -26,22 +26,26 @@
 
 #include "Define.h"
 #include <memory>
-#include <set>
 
 namespace VMAP
 {
     class WorldModel;
+    struct AreaInfo;
 }
 
 class GameObject;
+class PhaseShift;
 struct GameObjectDisplayInfoEntry;
 
 class TC_COMMON_API GameObjectModelOwnerBase
 {
 public:
+    virtual ~GameObjectModelOwnerBase() = default;
+
     virtual bool IsSpawned() const { return false; }
     virtual uint32 GetDisplayId() const { return 0; }
-    virtual bool IsInPhase(std::set<uint32> const& /*phases*/) const { return false; }
+    virtual uint8 GetNameSetId() const { return 0; }
+    virtual bool IsInPhase(PhaseShift const& /*phaseShift*/) const { return false; }
     virtual G3D::Vector3 GetPosition() const { return G3D::Vector3::zero(); }
     virtual float GetOrientation() const { return 0.0f; }
     virtual float GetScale() const { return 1.0f; }
@@ -64,7 +68,8 @@ public:
     void enableCollision(bool enable) { _collisionEnabled = enable; }
     bool isCollisionEnabled() const { return _collisionEnabled; }
 
-    bool intersectRay(G3D::Ray const& ray, float& maxDist, bool stopAtFirstHit, std::set<uint32> const& phases) const;
+    bool intersectRay(G3D::Ray const& ray, float& maxDist, bool stopAtFirstHit, PhaseShift const& phaseShift) const;
+    void intersectPoint(G3D::Vector3 const& point, VMAP::AreaInfo& info, PhaseShift const& phaseShift) const;
 
     static GameObjectModel* Create(std::unique_ptr<GameObjectModelOwnerBase> modelOwner, std::string const& dataPath);
 

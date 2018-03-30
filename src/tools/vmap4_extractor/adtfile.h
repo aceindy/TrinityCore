@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -106,31 +106,28 @@ struct MapChunkHeader
     uint32 effectId;
 };
 
+struct ADTOutputCache
+{
+    uint32 Flags;
+    std::vector<uint8> Data;
+};
 
 class ADTFile
 {
 private:
-    //size_t mcnk_offsets[256], mcnk_sizes[256];
     CASCFile ADT;
-    //mcell Mcell;
     std::string Adtfilename;
+    bool cacheable;
+    std::vector<ADTOutputCache>* dirfileCache;
 public:
-    ADTFile(char* filename);
+    ADTFile(char* filename, bool cache);
     ~ADTFile();
     int nWMO;
     int nMDX;
     std::vector<std::string> WmoInstanceNames;
     std::vector<std::string> ModelInstanceNames;
-    bool init(uint32 map_num, uint32 tileX, uint32 tileY);
-    //void LoadMapChunks();
-
-    //uint32 wmo_count;
-/*
-    const mcell& Getmcell() const
-    {
-        return Mcell;
-    }
-*/
+    bool init(uint32 map_num, uint32 tileX, uint32 tileY, uint32 originalMapId);
+    bool initFromCache(uint32 map_num, uint32 tileX, uint32 tileY, uint32 originalMapId);
 };
 
 char const* GetPlainName(char const* FileName);

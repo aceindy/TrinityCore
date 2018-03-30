@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -23,6 +23,8 @@
 
 #include "MapTree.h"
 #include "ModelInstance.h"
+#include "VMapFactory.h"
+#include "VMapManager2.h"
 
 #include "DetourNavMeshBuilder.h"
 #include "DetourNavMesh.h"
@@ -57,7 +59,7 @@ namespace MMAP
 {
     MapBuilder::MapBuilder(float maxWalkableAngle, bool skipLiquid,
         bool skipContinents, bool skipJunkMaps, bool skipBattlegrounds,
-        bool debugOutput, bool bigBaseUnit, const char* offMeshFilePath) :
+        bool debugOutput, bool bigBaseUnit, int mapid, const char* offMeshFilePath) :
         m_terrainBuilder     (NULL),
         m_debugOutput        (debugOutput),
         m_offMeshFilePath    (offMeshFilePath),
@@ -66,6 +68,7 @@ namespace MMAP
         m_skipBattlegrounds  (skipBattlegrounds),
         m_maxWalkableAngle   (maxWalkableAngle),
         m_bigBaseUnit        (bigBaseUnit),
+        m_mapid              (mapid),
         m_totalTiles         (0u),
         m_totalTilesProcessed(0u),
         m_rcContext          (NULL),
@@ -152,10 +155,29 @@ namespace MMAP
                 if (tiles->insert(tileID).second)
                     count++;
             }
+
+            // make sure we process maps which don't have tiles
+            if (tiles->empty())
+            {
+                // convert coord bounds to grid bounds
+                uint32 minX, minY, maxX, maxY;
+                getGridBounds(mapID, minX, minY, maxX, maxY);
+
+                // add all tiles within bounds to tile list.
+                for (uint32 i = minX; i <= maxX; ++i)
+                    for (uint32 j = minY; j <= maxY; ++j)
+                        if (tiles->insert(StaticMapTree::packTileID(i, j)).second)
+                            count++;
+            }
         }
         printf("found %u.\n\n", count);
 
-        m_totalTiles.store(count, std::memory_order_relaxed);
+        // Calculate tiles to process in total
+        for (TileList::iterator it = m_tiles.begin(); it != m_tiles.end(); ++it)
+        {
+            if (!shouldSkipMap(it->m_mapId))
+                m_totalTiles += it->m_tiles->size();
+        }
     }
 
     /**************************************************************************/
@@ -196,7 +218,7 @@ namespace MMAP
             _workerThreads.push_back(std::thread(&MapBuilder::WorkerThread, this));
         }
 
-        m_tiles.sort([](MapTiles a, MapTiles b)
+        m_tiles.sort([](MapTiles const& a, MapTiles const& b)
         {
             return a.m_tiles->size() > b.m_tiles->size();
         });
@@ -374,25 +396,7 @@ namespace MMAP
     /**************************************************************************/
     void MapBuilder::buildMap(uint32 mapID)
     {
-#ifndef __APPLE__
-        //printf("[Thread %u] Building map %04u:\n", uint32(ACE_Thread::self()), mapID);
-#endif
-
         std::set<uint32>* tiles = getTileList(mapID);
-
-        // make sure we process maps which don't have tiles
-        if (!tiles->size())
-        {
-            // convert coord bounds to grid bounds
-            uint32 minX, minY, maxX, maxY;
-            getGridBounds(mapID, minX, minY, maxX, maxY);
-
-            // add all tiles within bounds to tile list.
-            for (uint32 i = minX; i <= maxX; ++i)
-                for (uint32 j = minY; j <= maxY; ++j)
-                    if (tiles->insert(StaticMapTree::packTileID(i, j)).second)
-                        ++m_totalTiles;
-        }
 
         if (!tiles->empty())
         {
@@ -415,11 +419,9 @@ namespace MMAP
                 // unpack tile coords
                 StaticMapTree::unpackTileID((*it), tileX, tileY);
 
+                if (!shouldSkipTile(mapID, tileX, tileY))
+                    buildTile(mapID, tileX, tileY, navMesh);
                 ++m_totalTilesProcessed;
-                if (shouldSkipTile(mapID, tileX, tileY))
-                    continue;
-
-                buildTile(mapID, tileX, tileY, navMesh);
             }
 
             dtFreeNavMesh(navMesh);
@@ -470,7 +472,12 @@ namespace MMAP
     /**************************************************************************/
     void MapBuilder::buildNavMesh(uint32 mapID, dtNavMesh* &navMesh)
     {
-        std::set<uint32>* tiles = getTileList(mapID);
+        // if map has a parent we use that to generate dtNavMeshParams - worldserver will load all missing tiles from that map
+        int32 navMeshParamsMapId = static_cast<VMapManager2*>(VMapFactory::createOrGetVMapManager())->getParentMapId(mapID);
+        if (navMeshParamsMapId == -1)
+            navMeshParamsMapId = mapID;
+
+        std::set<uint32>* tiles = getTileList(navMeshParamsMapId);
 
         // old code for non-statically assigned bitmask sizes:
         ///*** calculate number of bits needed to store tiles & polys ***/
@@ -531,6 +538,7 @@ namespace MMAP
         if (!file)
         {
             dtFreeNavMesh(navMesh);
+            navMesh = nullptr;
             char message[1024];
             sprintf(message, "[Map %04u] Failed to open %s for writing!\n", mapID, fileName);
             perror(message);
@@ -907,6 +915,9 @@ namespace MMAP
     /**************************************************************************/
     bool MapBuilder::shouldSkipMap(uint32 mapID)
     {
+        if (m_mapid >= 0)
+            return static_cast<uint32>(m_mapid) != mapID;
+
         if (m_skipContinents)
             switch (mapID)
             {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -18,8 +18,8 @@
 
 #include "adtfile.h"
 #include "DB2CascFileSource.h"
-#include "DB2Meta.h"
 #include "Errors.h"
+#include "ExtractorDB2LoadInfo.h"
 #include "model.h"
 #include "StringFormat.h"
 #include "vmapexport.h"
@@ -56,33 +56,6 @@ bool ExtractSingleModel(std::string& fname)
 }
 
 extern CASC::StorageHandle CascStorage;
-
-struct GameobjectDisplayInfoLoadInfo
-{
-    static DB2FileLoadInfo const* Instance()
-    {
-        static DB2FieldMeta const fields[] =
-        {
-            { false, FT_INT, "ID" },
-            { false, FT_INT, "FileDataID" },
-            { false, FT_FLOAT, "GeoBoxMinX" },
-            { false, FT_FLOAT, "GeoBoxMinY" },
-            { false, FT_FLOAT, "GeoBoxMinZ" },
-            { false, FT_FLOAT, "GeoBoxMaxX" },
-            { false, FT_FLOAT, "GeoBoxMaxY" },
-            { false, FT_FLOAT, "GeoBoxMaxZ" },
-            { false, FT_FLOAT, "OverrideLootEffectScale" },
-            { false, FT_FLOAT, "OverrideNameScale" },
-            { false, FT_SHORT, "ObjectEffectPackageID" },
-        };
-        static char const* types = "ifffh";
-        static uint8 const arraySizes[5] = { 1, 6, 1, 1, 1 };
-        static DB2FieldDefault const fieldDefaults[5] = { uint32(0), float(0), float(0), float(0), uint16(0) };
-        static DB2Meta const meta(-1, 5, 0x9EF36BC0, types, arraySizes, fieldDefaults);
-        static DB2FileLoadInfo const loadInfo(&fields[0], std::extent<decltype(fields)>::value, &meta);
-        return &loadInfo;
-    }
-};
 
 enum ModelTypes : uint32
 {
